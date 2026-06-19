@@ -152,20 +152,16 @@ Save Email Draft
 # 📸 Project Screenshots
 
 ## Job Collector Workflow
-
-![Job Collector Workflow](screenshots/job-collector-workflow.png)
+![Job Collector Workflow](Job_Collector.png)
 
 ## AI Job Processing Workflow
-
-![AI Job Processing Workflow](screenshots/ai-job-processing-workflow.png)
+![AI Job Processing Workflow](AI_Job_Proccessing.png)
 
 ## PostgreSQL Database
-
-![Database](screenshots/postgresql-database.png)
+![Database](postgresql-database.png)
 
 ## Generated Application Email
-
-![Generated Email](screenshots/generated-email.png)
+![Generated Email](generated-email.png)
 
 ---
 
