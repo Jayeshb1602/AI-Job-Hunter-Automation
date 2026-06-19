@@ -1,0 +1,560 @@
+{
+  "name": "AI_Job_Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {},
+            {
+              "triggerAtHour": 13
+            },
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3cb17f52-01b0-4ed9-b61f-1b9dd30daf87",
+      "name": "AI Processing Scheduler"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "jobs",
+          "mode": "list",
+          "cachedResultName": "jobs"
+        },
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "fdfdf23a-599d-4eee-9880-980a83b21409",
+      "name": "Fetch New Jobs(Select rows from a table)",
+      "credentials": {
+        "postgres": {
+          "id": "oQP8E3KDKKbWXnAV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AQ.YourAPKEYSHERE",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are a technical recruiter. Analyze this job and return only valid JSON.\\n\\nJob Title: {{$json.job_title}}\\nLocation: {{$json.location}}\\n\\nMy Skills: Java, Spring Boot, MySQL, React, Git.\\n\\nReturn format:\\n{\\n\\\"score\\\":85,\\n\\\"strengths\\\":[\\\"Java\\\"],\\n\\\"missing_skills\\\":[\\\"AWS\\\"]\\n}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "43ed7246-cc5c-4b68-8629-0f439cef68b0",
+      "name": "Generate Match Analysis(HTTP Request)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiText =\n$input.first().json.candidates[0].content.parts[0].text;\n\nconst cleaned = geminiText\n.replace(/```json/g, '')\n.replace(/```/g, '')\n.trim();\n\nconst result = JSON.parse(cleaned);\n\n// Get original row from Postgres node\nconst job =\n$('Fetch New Jobs(Select rows from a table)').first().json;\n\nreturn [\n{\njson: {\nid: job.id,\nmatch_score: result.score,\nstrengths: result.strengths.join(', '),\nmissing_skills: result.missing_skills.join(', ')\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "cb4f7377-26c6-4842-a8f9-829bcc440fdf",
+      "name": "Parse Match Analysis"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "jobs",
+          "mode": "list",
+          "cachedResultName": "jobs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "match_score": "={{$json.match_score}}",
+            "id": "={{$json.id}}",
+            "strengths": "={{$json.strengths}}",
+            "missing_skills": "={{$json.missing_skills}}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "job_title",
+              "displayName": "job_title",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "job_url",
+              "displayName": "job_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "job_description",
+              "displayName": "job_description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "match_score",
+              "displayName": "match_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strengths",
+              "displayName": "strengths",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "missing_skills",
+              "displayName": "missing_skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        832,
+        0
+      ],
+      "id": "91e07f01-990f-47bd-b69a-d117c0c8042f",
+      "name": "Update Job Analysis",
+      "credentials": {
+        "postgres": {
+          "id": "oQP8E3KDKKbWXnAV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "71e67aff-22f3-4e67-a1dd-25fe824f34de",
+              "leftValue": "={{$json.match_score}}",
+              "rightValue": 75,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "02cd1f98-ffba-47ce-a464-0c8f1370a48f",
+      "name": "Qualified Job Check"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOU-API-KEY",
+        "sendBody": true,
+        "specifyBody": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={{\n{\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": `You are generating a highly professional and tailored job application email.\nThe email must be written STRICTLY FROM the candidate (Jayesh Borse) TO the recruiter, hiring manager, or company representative.\n\n========================\nCANDIDATE PROFILE\n========================\nName: Jayesh Borse\nEducation: Integrated MCA (Master of Computer Applications)\nLinkedIn: https://www.linkedin.com/in/jayesh-borse-67408b325\n\nCore Skills:\n- Java\n- Advanced Java\n- JavaScript\n\nBackend:\n- Spring Boot\n- Spring Security\n- Hibernate / JPA\n- REST APIs\n\nFrontend:\n- React.js\n- HTML5\n- CSS3\n\nDatabases:\n- PostgreSQL\n- MySQL\n\nTools:\n- Git\n- GitHub\n- Postman\n\nConcepts:\n- OOP\n- MVC Architecture\n- Exception Handling\n- Microservices Fundamentals\n- Data Structures & Algorithms\n\nALL AVAILABLE PROJECTS:\n1. AI Job Hunter Automation Platform (Built with n8n, PostgreSQL, Gemini AI)\n2. Smart Mobility Platform (Full-stack logistics/tracking solution)\n3. Java Console Job Portal (Pure Java & OOP application)\n\n========================\nJOB DETAILS\n========================\nJob Title: ${$json.job_title}\nCompany Name: ${$json.company_name}\nJob Description: ${$json.job_description}\n\n========================\nEMAIL GENERATION RULES\n========================\n1. Write completely from Jayesh Borse's perspective. Do not simulate a hiring platform or recruiter.\n2. Maximum 250 words. Use a professional, concise, and confident tone.\n3. PHRASING IMPROVEMENTS:\n   - Do NOT write \"My Integrated MCA education and practical experience align well...\". Instead, use: \"As an Integrated MCA graduate with hands-on experience in Java backend development...\".\n   - Group the tech stack elements naturally: \"I possess strong proficiency in Java, Spring Boot, REST API development, and MySQL, which align closely with the technical requirements of this role.\"\n4. PROJECT SELECTION RULE: Select the single most relevant project based on the job description and mention ONLY that project. Do not mention the others. Use this exact mapping:\n   * Java Developer roles → Mention only: Java Console Job Portal\n   * Backend Developer roles → Mention only: AI Job Hunter Automation Platform\n   * Full Stack Developer roles → Mention only: Smart Mobility Platform\n   * Frontend Developer roles → Mention only: Smart Mobility Platform\n5. Do NOT use these phrases:\n    * \"I came across your profile\"\n    * \"I would like to discuss an opportunity with you\"\n    * Placeholders like [Your Name] or [Company Name]\n6. If the job is NOT related to Software Engineering, Java Development, Backend Development, Frontend Development, Full Stack Development, or Web Development, return EXACTLY:\n{\n  \"subject\": \"NOT_RELEVANT\",\n  \"email\": \"NOT_RELEVANT\"\n}\n7. Subject format: Application for [Job Title] – Jayesh Borse\n8. CLOSING CTA: End with appreciation for consideration and a confident, personalized call to action exactly like: \"I would welcome the opportunity to discuss how my skills and project experience can contribute to ${$json.company_name}'s engineering team.\" Follow this directly with the LinkedIn profile link.\n\n========================\nOUTPUT FORMAT (CRITICAL)\n========================\n- Return raw, clean JSON matching the structure below.\n- Do NOT wrap the response in markdown.\n- Do NOT use \\`\\`\\`json or \\`\\`\\` code blocks anywhere in your response.\n- Start directly with the opening curly brace { and end with the closing curly brace }.\n\n{\n  \"subject\": \"...\",\n  \"email\": \"...\"\n}`\n        }\n      ]\n    }\n  ]\n}\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1232,
+        -144
+      ],
+      "id": "375d9938-22eb-432d-aa48-1419a5449bf3",
+      "name": "Generate Application Email"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text =\n$input.first().json.candidates[0].content.parts[0].text;\n\nconst clean = text\n.replace(/```json/g, '')\n.replace(/```/g, '')\n.trim();\n\nconst parsed = JSON.parse(clean);\n\n// Get original job record\nconst job =\n$('Fetch New Jobs(Select rows from a table)').first().json;\n\nreturn [\n{\njson: {\njob_id: job.id,\ngenerated_subject: parsed.subject,\ngenerated_email: parsed.email,\nstatus: 'GENERATED'\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -144
+      ],
+      "id": "d5d241b0-74dc-457b-a9ae-3335f5636a0c",
+      "name": "Parse Email Response"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "applications",
+          "mode": "list",
+          "cachedResultName": "applications"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "job_id": "={{$json.job_id}}",
+            "generated_subject": "={{$json.generated_subject}}",
+            "generated_email": "={{$json.generated_email}}",
+            "status": "GENERATED"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "job_id",
+              "displayName": "job_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recruiter_id",
+              "displayName": "recruiter_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_subject",
+              "displayName": "email_subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "application_date",
+              "displayName": "application_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "followup_date",
+              "displayName": "followup_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recruiter_email",
+              "displayName": "recruiter_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generated_subject",
+              "displayName": "generated_subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generated_email",
+              "displayName": "generated_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1632,
+        -144
+      ],
+      "id": "00e05984-fcef-415d-b542-cd0bc2076008",
+      "name": "Save Email Draft",
+      "credentials": {
+        "postgres": {
+          "id": "oQP8E3KDKKbWXnAV",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Processing Scheduler": {
+      "main": [
+        [
+          {
+            "node": "Fetch New Jobs(Select rows from a table)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch New Jobs(Select rows from a table)": {
+      "main": [
+        [
+          {
+            "node": "Generate Match Analysis(HTTP Request)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Match Analysis(HTTP Request)": {
+      "main": [
+        [
+          {
+            "node": "Parse Match Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Match Analysis": {
+      "main": [
+        [
+          {
+            "node": "Update Job Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Job Analysis": {
+      "main": [
+        [
+          {
+            "node": "Qualified Job Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualified Job Check": {
+      "main": [
+        [
+          {
+            "node": "Generate Application Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Application Email": {
+      "main": [
+        [
+          {
+            "node": "Parse Email Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Email Response": {
+      "main": [
+        [
+          {
+            "node": "Save Email Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "921164b4-3695-4b40-8741-59dfffc3a9bb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d89061b2b1f0cbf8f2761e5ae001bb93bf036901fa3aa48b96b414d9bbadf219"
+  },
+  "nodeGroups": [],
+  "id": "ixiLdUrwl8qkGDKA",
+  "tags": []
+}
